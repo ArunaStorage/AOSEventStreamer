@@ -79,12 +79,18 @@ impl update_notification_service_server::UpdateNotificationService for PublicSer
 
         authz_request.metadata_mut().clone_from(&metadata.clone());
 
-        let authorized = self
+        let authorized = match self
             .internal_authz_client
             .clone()
             .authorize(authz_request)
             .await
-            .unwrap();
+        {
+            Ok(value) => value,
+            Err(err) => {
+                error!("{}", err);
+                return Err(Status::internal("internal error during authz call"));
+            }
+        };
 
         if !authorized.into_inner().ok {
             return Err(tonic::Status::new(
@@ -249,7 +255,13 @@ impl update_notification_service_server::UpdateNotificationService for PublicSer
             })
             .await
         {
-            Ok(value) => value.into_inner().stream_group.unwrap(),
+            Ok(value) => {
+                let value = match value.into_inner().stream_group {
+                    Some(value) => value,
+                    None => return Err(Status::internal("internal error reading stream group")),
+                };
+                value
+            }
             Err(err) => {
                 error!("{}", err);
                 return Err(tonic::Status::internal(

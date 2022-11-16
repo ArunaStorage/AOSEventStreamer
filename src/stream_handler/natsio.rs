@@ -200,8 +200,7 @@ impl EventStreamHandler for NatsIOEventStreamHandler {
             .batch()
             .expires(Duration::from_millis(250))
             .messages()
-            .await
-            .unwrap();
+            .await?;
         let mut messages = Vec::new();
         while let Some(Ok(message)) = batch.next().await {
             messages.push(message);
